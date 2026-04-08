@@ -15,7 +15,7 @@ claude plugin install essencium-frontend-migration@essencium-frontend-migration
 ## Updating
 
 ```bash
-claude plugin update essencium-frontend-migration
+claude plugin update essencium-frontend-migration@essencium-frontend-migration
 ```
 
 Restart Claude Code after updating to apply changes.
