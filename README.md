@@ -9,7 +9,7 @@ A Claude Code plugin that automates migrating downstream projects built on [esse
 claude plugin marketplace add Frachtwerk/essencium-frontend-migration-plugin
 
 # Install the plugin
-claude plugin install essencium-frontend-migration@Frachtwerk
+claude plugin install essencium-frontend-migration@essencium-frontend-migration
 ```
 
 ## Usage
