@@ -1,5 +1,5 @@
 ---
-name: migrate-essencium
+name: migrate-essencium-frontend
 description: "Migrate an essencium-frontend based project to a newer version. Detects current version, analyzes customizations, and applies upstream changes interactively. Use when upgrading @frachtwerk/essencium-lib or @frachtwerk/essencium-types."
 argument-hint: "[target-version]"
 ---

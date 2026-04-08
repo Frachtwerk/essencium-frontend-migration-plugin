@@ -17,13 +17,13 @@ claude plugin install essencium-frontend-migration@essencium-frontend-migration
 In your downstream project directory, invoke the migration skill:
 
 ```
-/migrate-essencium
+/migrate-essencium-frontend
 ```
 
 Optionally specify a target version:
 
 ```
-/migrate-essencium 9.5.0
+/migrate-essencium-frontend 9.5.0
 ```
 
 The plugin detects your current essencium version, calculates the migration path, and walks you through each version step interactively.
