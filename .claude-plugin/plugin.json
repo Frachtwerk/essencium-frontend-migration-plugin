@@ -1,0 +1,17 @@
+{
+  "name": "essencium-frontend-migration",
+  "description": "Automated migration tool for projects built on essencium-frontend. Analyzes upstream changes, detects downstream customizations, and applies version-by-version migrations interactively.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Frachtwerk GmbH"
+  },
+  "homepage": "https://github.com/Frachtwerk/essencium-frontend-migration-plugin",
+  "repository": "https://github.com/Frachtwerk/essencium-frontend-migration-plugin",
+  "license": "MIT",
+  "keywords": [
+    "essencium",
+    "migration",
+    "frontend",
+    "upgrade"
+  ]
+}
