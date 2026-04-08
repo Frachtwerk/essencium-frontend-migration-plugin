@@ -15,10 +15,13 @@ Before you begin, be aware of two reference documents bundled with this skill:
 - **`./references/categories.md`** -- Detailed handling instructions for each of the 7 change categories. You MUST read this file during the APPLY phase (step 2c).
 - **`./references/manifest-format.md`** -- The YAML schema for migration manifests. Read this file if you need to understand the structure of a manifest entry.
 
-The migration manifests are located at `../../manifests/` relative to this SKILL.md file.
-
 The upstream essencium-frontend repository is at: https://github.com/Frachtwerk/essencium-frontend
 Git tags follow the pattern: `essencium-app-v<version>` (e.g., `essencium-app-v9.4.5`).
+
+Migration manifests are fetched directly from the essencium-frontend GitHub repository at runtime. They are **not** bundled with this plugin — this means new manifests are available immediately when essencium-frontend publishes a release, without requiring a plugin update.
+
+- **List available manifests:** `https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests`
+- **Fetch a specific manifest:** `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml`
 
 ---
 
@@ -28,9 +31,13 @@ Determine the current state of the downstream project and calculate the migratio
 
 1. **Read the downstream project's `package.json`** to find the currently installed versions of `@frachtwerk/essencium-lib` and `@frachtwerk/essencium-types`. These tell you the current essencium version the project is based on.
 
-2. **Determine the target version.** If the developer passed a target version as `$ARGUMENTS`, use that. Otherwise, default to the latest (highest) version available in the plugin's `manifests/` directory.
+2. **Determine the target version.** If the developer passed a target version as `$ARGUMENTS`, use that. Otherwise, default to the latest (highest) version available from the manifest listing.
 
-3. **List all available manifest files** by globbing `../../manifests/*.yaml` relative to this skill file. Parse the version number from each filename (e.g., `9.4.5.yaml` means version `9.4.5`). Sort them in ascending semver order.
+3. **List all available manifest files** by fetching the GitHub API:
+   ```
+   https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests
+   ```
+   Parse the version number from each filename in the response (e.g., `9.4.5.yaml` means version `9.4.5`). Sort them in ascending semver order.
 
 4. **Calculate the migration path.** Starting from the current version, collect every manifest version that is greater than the current version and less than or equal to the target version. These are the steps to execute, in ascending order. Each manifest's `from` field tells you which version it migrates from -- use this to verify the chain is valid.
 
@@ -58,7 +65,10 @@ For each version in the migration path, execute these sub-steps in order. Do NOT
 
 ### Step 2a: LOAD manifest
 
-1. Read the manifest YAML file for this version step from the plugin's `manifests/` directory.
+1. Fetch the manifest YAML file for this version step from GitHub:
+   ```
+   https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml
+   ```
 2. Parse the manifest and group the changes by their `type` field. The 7 types are:
    - `dependency_migration`
    - `infrastructure`
