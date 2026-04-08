@@ -12,6 +12,14 @@ claude plugin marketplace add Frachtwerk/essencium-frontend-migration-plugin
 claude plugin install essencium-frontend-migration@essencium-frontend-migration
 ```
 
+## Updating
+
+```bash
+claude plugin update essencium-frontend-migration
+```
+
+Restart Claude Code after updating to apply changes.
+
 ## Usage
 
 In your downstream project directory, invoke the migration skill:
