@@ -1,7 +1,7 @@
 {
   "name": "essencium-frontend-migration",
   "description": "Automated migration tool for projects built on essencium-frontend. Analyzes upstream changes, detects downstream customizations, and applies version-by-version migrations interactively.",
-  "version": "0.2.0",
+  "version": "9.5.0",
   "author": {
     "name": "Frachtwerk GmbH"
   },
