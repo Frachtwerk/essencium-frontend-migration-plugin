@@ -31,6 +31,12 @@ Library version bumps. Used when an npm dependency is updated.
 | `reference` | string | yes | URL to changelog or migration guide |
 | `notes` | string | yes | Description of impact |
 
+**Special values:**
+
+- `from` can be `null` when a dependency is newly added (not previously present in the downstream project).
+- `to` can be `"removed"` when a dependency is being uninstalled.
+- Both `reference` and `notes` are still required in these cases.
+
 ### `infrastructure`
 
 Config, build tool, or project infrastructure changes.
@@ -51,8 +57,10 @@ Modified existing files. Used when source files are changed in ways that downstr
 |-------|------|----------|-------------|
 | `type` | string | yes | `"file_tracking"` |
 | `description` | string | yes | What changed and why |
-| `files` | array | yes | List of `{path, action}` objects. `path` is relative to the app root. `action` is `modified` or `added`. |
+| `files` | array | yes | List of `{path, action}` objects. `path` is relative to the app root. `action` is `modified`, `added`, or `removed`. |
 | `pr` | string | no | GitHub PR URL |
+
+**File renames:** When a `file_tracking` entry contains files with both `action: added` and `action: removed`, this represents a file rename. The migration skill handles renames by moving the old file to the new path.
 
 ### `new_file`
 

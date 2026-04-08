@@ -33,10 +33,20 @@ Just bump the version in the downstream project's `package.json`. No code change
    - Present each transformed file to the developer for review before applying the change.
 5. After all transformations are complete, run the package manager install command.
 
+### When `from: null` (new dependency)
+
+The dependency is newly added and was not previously present in the downstream project. Install it via the package manager. No code scanning is needed since there is no old API to transform.
+
+### When `to: "removed"` (dependency removal)
+
+The dependency is being uninstalled. Scan the downstream project for imports and usage of the package. Help the developer remove all usage before uninstalling. This is always interactive -- the developer must review and confirm removal of each usage site.
+
 ### Auto/Interactive
 
 - **`scope: package`** — Auto-apply. Just a version bump, no review needed.
 - **`scope: project_wide`** — Interactive. The developer reviews every transformed file before it is written.
+- **`from: null`** — Auto-apply. Just an install, no code scanning needed.
+- **`to: "removed"`** — Interactive. Always requires developer review.
 
 ---
 

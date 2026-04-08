@@ -23,6 +23,10 @@ Migration manifests are fetched directly from the essencium-frontend GitHub repo
 - **List available manifests:** `https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests`
 - **Fetch a specific manifest:** `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml`
 
+## GitHub API usage
+
+This skill fetches manifests and upstream files from GitHub. Unauthenticated requests are limited to 60/hour. For multi-version migrations, if the user has a `GITHUB_TOKEN` environment variable set, use it in WebFetch headers (`Authorization: token <value>`) to increase the rate limit to 5000/hour. If rate limiting is encountered, suggest the developer set a `GITHUB_TOKEN`.
+
 ---
 
 ## Step 1: DETECT
@@ -43,6 +47,7 @@ Determine the current state of the downstream project and calculate the migratio
 
    - If a manifest is missing for an intermediate version, skip it. Not all versions have breaking changes or manifests.
    - Only include versions that have a corresponding manifest YAML file.
+   - If the downstream project's current version falls between two manifest versions (e.g., downstream is at 9.4.2 but the next manifest is 9.4.4 with `from: "9.4.0"`), still apply that manifest. The `from` field indicates the intended baseline, not a hard requirement. Minor patch versions between manifests typically don't have breaking changes.
 
 5. **Present the migration path** to the developer and ask for confirmation before proceeding:
 
@@ -137,6 +142,10 @@ Ask the developer to confirm the plan before applying changes.
 
 Process changes in this exact order (dependencies first, then structural, then content):
 
+#### 0. Bump essencium packages
+
+Before processing other changes, update `@frachtwerk/essencium-lib` and `@frachtwerk/essencium-types` in the downstream project's `package.json` to match this version step's target version. Run the package manager install command to fetch the updated packages. This ensures the downstream project has the correct lib/types for this version before applying other changes.
+
 #### 1. `dependency_migration`
 
 - **`scope: package`:** Auto-apply. Update the version in the downstream `package.json`.
@@ -217,10 +226,9 @@ After applying all changes for this version step:
 5. **If all pass:**
    - Ask the developer for confirmation before committing.
    - Commit the migration for this version step:
-     ```bash
-     git add -A
-     git commit -m "chore: migrate essencium-frontend to v<version>"
-     ```
+     - Run `git status` to review all changes
+     - Stage only the files that were modified during this migration step. Do NOT use `git add -A` as it may stage sensitive files (.env.local, credentials) or unrelated work-in-progress
+     - Confirm the staged files with the developer before committing
    - Only commit after the developer confirms.
 
 ### Step 2e: Repeat
@@ -239,8 +247,6 @@ After all version steps have been successfully migrated:
    - Note any interactive decisions the developer made.
 
 2. **Remind the developer** to take the following final actions:
-   - Update `@frachtwerk/essencium-lib` and `@frachtwerk/essencium-types` version numbers in their `package.json` to the target version.
-   - Run `npm install` or `pnpm install` to fetch the updated packages.
    - Run a final build and test to confirm everything works end-to-end.
    - Review any `# TODO` comments that were added during the migration.
 
