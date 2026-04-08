@@ -4,8 +4,12 @@ A Claude Code plugin that automates migrating downstream projects built on [esse
 
 ## Installation
 
-```
-claude install essencium-frontend-migration
+```bash
+# Add the plugin source
+claude plugin marketplace add Frachtwerk/essencium-frontend-migration-plugin
+
+# Install the plugin
+claude plugin install essencium-frontend-migration@Frachtwerk
 ```
 
 ## Usage
@@ -16,21 +20,27 @@ In your downstream project directory, invoke the migration skill:
 /migrate-essencium
 ```
 
-The plugin will walk you through each pending version upgrade, presenting changes and letting you accept, adapt, or skip each one.
+Optionally specify a target version:
+
+```
+/migrate-essencium 9.5.0
+```
+
+The plugin detects your current essencium version, calculates the migration path, and walks you through each version step interactively.
 
 ## What it automates
 
 The plugin handles seven categories of upstream changes:
 
-1. **Dependency updates** -- new, removed, or changed packages in `package.json`
-2. **Configuration changes** -- updates to bundler, linter, TypeScript, and other config files
-3. **API client changes** -- modifications to generated or hand-written API client code
-4. **Component changes** -- updated, added, or removed React components
-5. **Type/schema changes** -- Zod schemas, TypeScript types, and shared type definitions
-6. **Routing changes** -- new or restructured routes and navigation
-7. **Internationalization changes** -- added or modified translation keys and locale files
+1. **Dependency ecosystem migrations** -- library upgrades (e.g., Zod v3 to v4) that affect your entire project, not just essencium-origin files
+2. **Infrastructure/config changes** -- build tools, framework upgrades, PostCSS/ESLint/TypeScript config
+3. **File tracking** -- modifications to files you copied from the essencium app boilerplate, merged with your customizations
+4. **New files** -- files added upstream that your project may need
+5. **File removals** -- files deleted upstream (e.g., CSS modules after Tailwind migration)
+6. **Translation key changes** -- added, changed, or removed i18n keys in locale JSON files
+7. **Environment variable changes** -- new or changed `.env` variables
 
-For each category the plugin compares the upstream diff against your local files, identifies conflicts, and guides you through resolution.
+For each category the plugin compares the upstream diff against your local files, detects customizations, and applies changes interactively -- preserving your modifications.
 
 ## Links
 
