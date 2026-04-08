@@ -15,6 +15,7 @@ claude plugin install essencium-frontend-migration@essencium-frontend-migration
 ## Updating
 
 ```bash
+claude plugin marketplace update essencium-frontend-migration
 claude plugin update essencium-frontend-migration@essencium-frontend-migration
 ```
 
