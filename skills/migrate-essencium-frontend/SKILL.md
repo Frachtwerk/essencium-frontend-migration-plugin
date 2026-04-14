@@ -45,17 +45,19 @@ Determine the current state of the downstream project and calculate the migratio
 
 4. **Calculate the migration path.** Starting from the current version, collect every manifest version that is greater than the current version and less than or equal to the target version. These are the steps to execute, in ascending order. Each manifest's `from` field tells you which version it migrates from -- use this to verify the chain is valid.
 
-   - If a manifest is missing for an intermediate version, skip it. Not all versions have breaking changes or manifests.
+   **Not all versions have manifests.** Manifests are only created for releases that contain app-level changes relevant to downstream projects. Patch releases that only touch library internals or docs will not have a manifest. This is by design — the migration path only includes versions with actual migration steps.
+
    - Only include versions that have a corresponding manifest YAML file.
-   - If the downstream project's current version falls between two manifest versions (e.g., downstream is at 9.4.2 but the next manifest is 9.4.4 with `from: "9.4.0"`), still apply that manifest. The `from` field indicates the intended baseline, not a hard requirement. Minor patch versions between manifests typically don't have breaking changes.
+   - If the downstream project's current version has no manifest (e.g., downstream is at 9.4.2 but the nearest manifests are 9.4.0 and 9.4.4), find the **next available manifest** whose version is greater than the current version. Apply it as the first step. The `from` field in that manifest indicates the intended baseline, not a hard requirement — patch versions between manifests typically don't introduce breaking changes that would invalidate the manifest.
+   - If the downstream project's current version is **older** than the oldest available manifest, warn the developer that migration manifests only cover versions from 6.0.0 onward.
 
 5. **Present the migration path** to the developer and ask for confirmation before proceeding:
 
    ```
-   Current: @frachtwerk/essencium-lib@9.2.0
+   Current: @frachtwerk/essencium-lib@9.4.2
    Target: 9.5.0
-   Migration path: 9.4.5 -> 9.5.0
-   (Only versions with migration manifests are included)
+   Migration path: 9.4.4 -> 9.4.5 -> 9.5.0
+   (Only versions with migration manifests are shown. Your version 9.4.2 has no manifest — starting from the next available: 9.4.4)
 
    Proceed? (y/n)
    ```

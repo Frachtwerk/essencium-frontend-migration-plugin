@@ -105,7 +105,7 @@ Environment variable changes.
 |-------|------|----------|-------------|
 | `type` | string | yes | `"env_variable"` |
 | `description` | string | yes | What variables changed |
-| `variables` | array | yes | List of `{name, required}` objects. `name` is the variable name, `required` is a boolean. |
+| `variables` | array | yes | List of `{name, required, default?}` objects. `name` is the variable name, `required` is a boolean, `default` is an optional string with the initial value. |
 
 ## Complete example
 
