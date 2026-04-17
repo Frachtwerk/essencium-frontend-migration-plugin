@@ -4,14 +4,13 @@ This document defines the YAML schema used by migration manifests. Each manifest
 
 ## Top-level fields
 
-All top-level fields are required.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `version` | string | The version being released, e.g., `"9.5.0"` |
-| `from` | string | The previous version this manifest migrates from, e.g., `"9.4.5"` |
-| `date` | string | Release date in `YYYY-MM-DD` format |
-| `changes` | array | List of change entries (see below) |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | string | yes | The version being released, e.g., `"9.5.0"` |
+| `from` | string | yes | The previous version this manifest migrates from, e.g., `"9.4.5"` |
+| `date` | string | yes | Release date in `YYYY-MM-DD` format |
+| `changes` | array | yes | List of change entries (see below) |
+| `pre_checks` | array | no | Validations to run before applying any changes for this version. See "Pre-checks" section below. |
 
 ## Change entry types
 
@@ -30,6 +29,8 @@ Library version bumps. Used when an npm dependency is updated.
 | `scope` | string | yes | Either `project_wide` (downstream code may need changes) or `package` (just bump the version, no code changes needed) |
 | `reference` | string | yes | URL to changelog or migration guide |
 | `notes` | string | yes | Description of impact |
+| `batch_hint` | object | no | Hints for efficient batch transformation. When present, the migration agent should generate a codemod script rather than editing files individually. Contains `pattern` (regex matching the old code), `replacement` (new code), and `file_glob` (glob pattern for files to scan, e.g. `"src/**/*.tsx"`). |
+| `test_infrastructure` | object | no | Test setup files and patterns known to be affected by this dependency change. Contains `files` (array of paths to test setup files) and `patterns` (array of grep patterns to find affected test mocks, e.g. `"vi.mock('old-package')"`). Used as a starting point for the test infrastructure scan. |
 
 **Special values:**
 
@@ -107,12 +108,46 @@ Environment variable changes.
 | `description` | string | yes | What variables changed |
 | `variables` | array | yes | List of `{name, required, default?}` objects. `name` is the variable name, `required` is a boolean, `default` is an optional string with the initial value. |
 
+## Pre-checks
+
+The optional `pre_checks` top-level array lists validations that must pass before any changes for this version are applied. Each entry has the following fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `description` | string | yes | What is being checked and why it matters |
+| `command` | string | yes | Shell command to execute. Exit code `0` = pass, non-zero = fail. |
+| `severity` | string | yes | `blocker` (migration stops until resolved) or `warning` (reported but does not block) |
+
+Pre-checks are designed to catch downstream-specific incompatibilities that the migration agent cannot anticipate without running the check. Common use cases:
+
+- Validating that existing data files (e.g., locale JSONs, config files) are compatible with a new library before applying changes
+- Verifying that the environment meets minimum version requirements
+- Confirming that a prerequisite manual step has already been completed
+
+**Example:**
+```yaml
+pre_checks:
+  - description: "Verify the project's locale files use key formats compatible with the new i18n library"
+    command: "node -e \"const f=require('fs');const check=(d)=>{for(const e of f.readdirSync(d,{withFileTypes:true})){if(e.isDirectory())check(d+'/'+e.name);else if(e.name.endsWith('.json')){const k=Object.keys(JSON.parse(f.readFileSync(d+'/'+e.name)));const bad=k.filter(x=>/[^\\w\\-]/.test(x.replace(/\\./,'_')));if(bad.length){console.error('Incompatible keys in '+d+'/'+e.name+':',bad);process.exit(1)}}}};check('public/locales')\""
+    severity: blocker
+  - description: "Check that Node.js version meets the minimum requirement for this release"
+    command: "node -e \"const [major]=process.version.slice(1).split('.').map(Number);if(major<20){console.error('Node '+process.version+' detected, >= 20 required');process.exit(1)}\""
+    severity: warning
+```
+
+---
+
 ## Complete example
 
 ```yaml
 version: "9.4.5"
 from: "9.4.4"
 date: "2025-09-22"
+
+pre_checks:
+  - description: "Verify the project is on a supported Node.js version"
+    command: "node -e \"const [major]=process.version.slice(1).split('.').map(Number);if(major<18){console.error('Node '+process.version+' detected, >= 18 required');process.exit(1)}\""
+    severity: warning
 
 changes:
   - type: dependency_migration
@@ -122,6 +157,24 @@ changes:
     scope: package
     reference: "https://github.com/axios/axios/releases"
     notes: "Bump axios to resolve CVE. No API changes required."
+
+  - type: dependency_migration
+    package: "some-query-lib"
+    from: "3.x"
+    to: "4.x"
+    scope: project_wide
+    reference: "https://github.com/example/some-query-lib/releases/v4"
+    notes: "useQuery signature changed: options object is now the second argument."
+    batch_hint:
+      pattern: "useQuery\\(([^,]+),\\s*([^,]+)\\)"
+      replacement: "useQuery($1, { queryFn: $2 })"
+      file_glob: "src/**/*.{ts,tsx}"
+    test_infrastructure:
+      files:
+        - "src/setupTests.ts"
+      patterns:
+        - "vi.mock('some-query-lib')"
+        - "jest.mock('some-query-lib')"
 
   - type: file_tracking
     description: "Improve accessibility of rights view checkboxes"

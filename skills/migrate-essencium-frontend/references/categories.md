@@ -24,14 +24,19 @@ Just bump the version in the downstream project's `package.json`. No code change
 
 ### When `scope: project_wide`
 
+**Efficiency note:** If the grep scan (step 3 below) finds more than 20 files needing the same mechanical transformation, generate a codemod script instead of editing files individually. Present the script to the developer, run it once, then verify with the type-check command. This prevents hour-long sequences of repetitive individual edits.
+
 1. Bump the dependency version in the downstream project's `package.json`.
 2. Fetch the reference URL from the manifest entry. Use WebFetch if available; otherwise rely on training knowledge of that library's migration guide.
 3. Scan the ENTIRE downstream project for usage patterns of the old API. Use Grep to find imports and usage of the affected library.
-4. For each file with old usage:
+4. **Process ALL matches in a single pass.** Do not split work across parallel sub-agents — sequential processing of one result set ensures no files are missed.
+5. For each file with old usage:
    - Read the file and understand the surrounding context.
    - Transform the code to use the new API, following the migration guide.
    - Present each transformed file to the developer for review before applying the change.
-5. After all transformations are complete, run the package manager install command.
+6. After all transformations are complete, run the package manager install command.
+7. **Test infrastructure.** Scan test setup files (`setupTests.*`, `vitest.setup.*`, `jest.setup.*`, or equivalent) and test files (`**/*.test.*`, `**/*.spec.*`) for mocks or configuration of the migrated library. Transform these files with the same migration guide. If the manifest entry has a `test_infrastructure` field, use its `files` and `patterns` as the starting point. Test infrastructure is not optional — stale mocks cause cascading failures.
+8. **Verification checkpoint.** Run the project's type-check command and compare against the pre-flight baseline (Step 0 of the migration). New errors indicate missed files — fix them before proceeding to the next category.
 
 ### When `from: null` (new dependency)
 
@@ -47,6 +52,10 @@ The dependency is being uninstalled. Scan the downstream project for imports and
 - **`scope: project_wide`** — Interactive. The developer reviews every transformed file before it is written.
 - **`from: null`** — Auto-apply. Just an install, no code scanning needed.
 - **`to: "removed"`** — Interactive. Always requires developer review.
+
+### Post-verification
+
+After completing all file transformations for a `scope: project_wide` migration, run the type-check command and compare against the pre-flight baseline. Fix any new errors before moving to the next category.
 
 ---
 
@@ -95,6 +104,10 @@ For each file in the manifest entry:
 - **Untouched files** — Auto-apply the upstream diff.
 - **Customized files** — Interactive. The developer reviews and decides how to merge upstream changes with their customizations.
 
+### Post-verification
+
+After applying all tracked file changes, run the type-check command and compare against the pre-flight baseline. New errors indicate that a merged file introduced type incompatibilities — fix them before proceeding.
+
 ---
 
 ## Category 4 — New Files (`new_file`)
@@ -139,6 +152,14 @@ Interactive — always confirm with the developer before deleting any file.
 ---
 
 ## Category 6 — Translation Keys (`translation`)
+
+### Pre-check
+
+Before applying any translation changes, validate that the downstream locale files are compatible with the target i18n library:
+
+1. Parse each downstream locale file and check whether the existing keys use formats that the target library may not support. Common incompatibilities include: keys containing dots or special characters that the library interprets as structural separators, keys that conflict with the library's reserved namespace syntax, or structural mismatches between flat and nested key conventions.
+2. If the migration introduces a new i18n library, consult the library's documentation to understand its key format constraints, and apply those constraints when scanning the downstream locale files.
+3. If incompatible keys are found, **stop and report them to the developer.** Downstream locale files must be updated to use compatible key formats before the migration proceeds — applying upstream translation changes on top of incompatible keys will cause runtime errors in the new library.
 
 ### Procedure
 

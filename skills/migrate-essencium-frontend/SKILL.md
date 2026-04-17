@@ -25,7 +25,32 @@ Migration manifests are fetched directly from the essencium-frontend GitHub repo
 
 ## GitHub API usage
 
-This skill fetches manifests and upstream files from GitHub. Unauthenticated requests are limited to 60/hour. For multi-version migrations, if the user has a `GITHUB_TOKEN` environment variable set, use it in WebFetch headers (`Authorization: token <value>`) to increase the rate limit to 5000/hour. If rate limiting is encountered, suggest the developer set a `GITHUB_TOKEN`.
+This skill fetches manifests and upstream files from GitHub. Use the correct method for each type of request:
+
+- **Raw file content** (manifest YAMLs, source files at a specific tag): Always use `raw.githubusercontent.com` URLs via WebFetch. Do NOT use `gh api repos/.../contents/...` for this — that endpoint returns base64-encoded JSON, not raw content, and requires extra decoding.
+  - Manifest: `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml`
+  - Source file at tag: `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/essencium-app-v<version>/packages/app/<path>`
+- **Directory listings** (to find available manifests): Use the GitHub Contents API with an explicit Accept header:
+  ```
+  GET https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests
+  Accept: application/vnd.github.v3+json
+  ```
+
+Unauthenticated requests are limited to 60/hour. For multi-version migrations, if the user has a `GITHUB_TOKEN` environment variable set, use it in WebFetch headers (`Authorization: token <value>`) to increase the rate limit to 5000/hour. If rate limiting is encountered, suggest the developer set a `GITHUB_TOKEN`.
+
+---
+
+## Step 0: PRE-FLIGHT
+
+Before starting the migration, establish baselines and verify the environment is ready.
+
+1. **Clean git state.** Run `git status`. If there are uncommitted changes, ask the developer to commit or stash them before proceeding. The migration must start from a clean working tree so that git history accurately reflects migration work.
+
+2. **Baseline type check.** Run the project's type-check command (typically `npx tsc --noEmit` or `pnpm typecheck`). Record whether it passes or fails, and how many errors exist. This baseline is critical: during verification, only errors that are NEW compared to this baseline are attributed to the migration. Pre-existing errors are ignored.
+
+3. **Baseline test run.** Run the project's test command. Record pass/fail counts. Same rationale: pre-existing failures are not migration failures.
+
+4. **Manifest pre-checks.** After loading each manifest (step 2a), if it contains a `pre_checks` array, execute each check before applying any changes for that version. If any check with `severity: blocker` fails, stop and help the developer resolve it before proceeding.
 
 ---
 
@@ -155,8 +180,16 @@ Before processing other changes, update `@frachtwerk/essencium-lib` and `@fracht
   1. Bump the version in `package.json`.
   2. Fetch the reference URL from the manifest entry using WebFetch (if available). Otherwise, rely on your knowledge of that library's migration guide.
   3. Use Grep to scan the entire downstream project for usage patterns of the old API.
-  4. For each file with old usage, read the file, transform the code to the new API, and present the change to the developer for review before applying.
-  5. After all transformations, run the package manager install command.
+  4. **Process ALL matches in a single pass.** Do NOT split work across parallel sub-agents — sequential processing of a single grep result set ensures no files are overlooked. If there are more than 50 files to transform, generate a codemod script instead of editing files individually (see "Batch operations" below).
+  5. For each file with old usage, read the file, transform the code to the new API, and present the change to the developer for review before applying.
+  6. After all transformations, run the package manager install command.
+  7. **Test infrastructure.** After transforming application code, scan the test infrastructure for references to the old dependency:
+     - Check test setup files (`setupTests.*`, `vitest.setup.*`, `jest.setup.*`, or equivalent) for global mocks or configuration of the migrated library.
+     - Scan test files (`**/*.test.*`, `**/*.spec.*`) for local mocks of the migrated package (e.g., `vi.mock('<old-package>')`, `jest.mock('<old-package>')`).
+     - Transform these files using the same migration guide.
+     - If the manifest entry includes a `test_infrastructure` field, use its `files` and `patterns` as the starting point for this scan.
+     - **Test infrastructure is NOT optional.** Stale test mocks after a dependency migration cause cascading test failures that are difficult to diagnose.
+  8. **Verification checkpoint.** Run the project's type-check command. Compare against the Step 0 baseline — only new errors are relevant. If new type errors appear, they indicate missed files; fix them before proceeding to the next change category. This checkpoint is mandatory for all `scope: project_wide` migrations.
 
 #### 2. `infrastructure`
 
@@ -270,6 +303,33 @@ When a dependency migration (step 2c.1) affects files that also appear in `file_
 
 ### File renames
 Some `file_tracking` entries contain both an `added` and a `removed` file path. This represents a rename. Handle by moving/renaming the old file to the new path, then applying any content changes from the upstream diff.
+
+### Batch operations (codemod-style)
+
+When a dependency migration or file tracking change requires the same mechanical transformation across many files (more than 20), do NOT edit files one by one. Instead:
+
+1. Identify the exact search pattern and its replacement.
+2. Write a codemod script (Node.js or shell) that performs the transformation.
+3. Present the script to the developer for review before running it.
+4. Execute it once across all matching files.
+5. Run the type-check command to verify.
+6. Show a summary of files changed.
+
+If the manifest entry includes a `batch_hint` field, use its `pattern`, `replacement`, and `file_glob` to generate the codemod script.
+
+### Prohibited operations during migration
+
+- **No `git stash` or `git reset --hard`.** These risk losing all migration changes accumulated so far. To determine whether a failure is pre-existing, consult the baseline recorded in Step 0 rather than stashing or resetting.
+- **No `sleep` commands.** Run commands synchronously. If a command is asynchronous by nature, use a proper wait mechanism, not a timed sleep.
+- **No `git checkout -- <file>` or `git restore` on migrated files.** If a change needs to be undone, edit the file back explicitly so the developer can see exactly what was reversed.
+
+### Code generation guidelines
+
+When generating or modifying code during the migration:
+
+- **Respect the module system.** Before writing imports or exports, check what module system the target file uses — look at the file extension (`.mjs`, `.cjs`, `.ts`), the `"type"` field in the nearest `package.json`, and whether the project uses a bundler. Do not use `require()` in ESM files or `import` in CommonJS files.
+- **Preserve downstream conventions.** Do not blindly copy upstream code into the downstream project. Check whether the downstream has local type overrides, its own utility functions, or different import paths for the same concepts, and preserve them.
+- **Check the Node.js version.** Before using newer Node.js APIs (e.g., `import.meta.dirname`, available since Node 21.2.0), verify the Node.js version the downstream project targets. Use older equivalents (e.g., `path.dirname(fileURLToPath(import.meta.url))`) when compatibility requires it.
 
 ### This is a collaborative process
 This migration skill is designed to be interactive and patient. Always explain what you are about to do. Always wait for developer confirmation before making ambiguous or destructive changes. Present clear summaries and diffs. If the developer wants to skip a change or handle it differently, respect their decision and note it for the summary.
