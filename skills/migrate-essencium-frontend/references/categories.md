@@ -177,6 +177,10 @@ For each locale in the manifest entry:
 - **Changes** — Interactive if the downstream value was customized; auto if it matches the old upstream value.
 - **Removals** — Interactive. Always flag for developer review.
 
+### Post-verification
+
+After writing the updated locale files, verify that no key referenced in the downstream codebase was accidentally removed. For each entry in `keys_removed`, grep the downstream codebase for usages of that key string. If any are found, flag them for the developer — the code must be updated to use the new key or to remove the reference before the migration is complete.
+
 ---
 
 ## Category 7 — Environment Variables (`env_variable`)

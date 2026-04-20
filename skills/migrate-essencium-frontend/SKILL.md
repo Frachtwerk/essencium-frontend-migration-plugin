@@ -25,16 +25,15 @@ Migration manifests are fetched directly from the essencium-frontend GitHub repo
 
 ## GitHub API usage
 
-This skill fetches manifests and upstream files from GitHub. Use the correct method for each type of request:
+This skill fetches manifests and upstream files from GitHub. Use the correct URL pattern for each case — using the wrong one is a common source of errors:
 
-- **Raw file content** (manifest YAMLs, source files at a specific tag): Always use `raw.githubusercontent.com` URLs via WebFetch. Do NOT use `gh api repos/.../contents/...` for this — that endpoint returns base64-encoded JSON, not raw content, and requires extra decoding.
-  - Manifest: `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml`
-  - Source file at tag: `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/essencium-app-v<version>/packages/app/<path>`
-- **Directory listings** (to find available manifests): Use the GitHub Contents API with an explicit Accept header:
-  ```
-  GET https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests
-  Accept: application/vnd.github.v3+json
-  ```
+| Purpose | Correct URL | Do NOT use |
+|---------|-------------|------------|
+| List available manifests | `https://api.github.com/repos/Frachtwerk/essencium-frontend/contents/packages/app/manifests` | — |
+| Fetch a manifest YAML | `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/main/packages/app/manifests/<version>.yaml` | `gh api repos/.../contents/...` (returns base64 JSON, not raw content) |
+| Fetch a source file at a tag | `https://raw.githubusercontent.com/Frachtwerk/essencium-frontend/essencium-app-v<version>/packages/app/<path>` | `gh api` for raw file content |
+
+Always use `raw.githubusercontent.com` for file content. `gh api repos/.../contents/...` returns a JSON envelope with base64-encoded content — it is not a substitute for raw file fetching and requires extra decoding.
 
 Unauthenticated requests are limited to 60/hour. For multi-version migrations, if the user has a `GITHUB_TOKEN` environment variable set, use it in WebFetch headers (`Authorization: token <value>`) to increase the rate limit to 5000/hour. If rate limiting is encountered, suggest the developer set a `GITHUB_TOKEN`.
 
